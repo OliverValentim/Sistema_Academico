@@ -1,7 +1,10 @@
 # Título: Desenvolvimento de um Sistema Acadêmico Colaborativo
 # Matéria: Projeto Integrador Multidisciplinar (PIM)
 # Turma: [DS2P44]
-# Autores: Oliver V. C. Santos (Líder), Richard I. Lima, Danilo H. C. Ferreira, Raphael L. Lopes
+# Autores: Oliver Valentim Carvalho Santos (H30GGD3) - Lí­der
+#          Richard Itsou Lima (H637643)
+#          Danilo Henrique Cardoso Ferreira (R845GG5)
+#          Raphael Lima Lopes (F3616J5)
 
 import tkinter as tk # biblioteca padrão do Python para criar interfaces gráficas
 from tkinter import ttk, messagebox  # ttk: widgets modernos com tema; messagebox: caixas de diálogo
@@ -14,9 +17,9 @@ import threading  # para rodar requisições HTTP em threads separadas (evitar t
 
 
 logging.basicConfig(level=logging.WARNING) # configura o nível de log para warning (só mostra erros graves)
-logger = logging.getLogger(__name__) # cria um logger específico para este módulo
+logger = logging.getLogger(__name__) # xria um logger específico para este módulo
 
-def tema_escuro(root): # finção para definir o tema do sistema, root é a janela principal
+def tema_escuro(root):
 
     # usa o tema 'clam' do ttk (permite personalização)
     style = ttk.Style()
@@ -45,11 +48,15 @@ def tema_escuro(root): # finção para definir o tema do sistema, root é a jane
 
 class SistemaAcademico:
     def __init__(self, root):
-        self.root = root # guarda a janela
-        self.root.title("Sistema Acadêmico") # título
-        self.root.geometry("1280x800") # tamanho
+        self.root = root
+        self.root.title("Sistema Acadêmico")
+        try:
+            self.root.iconbitmap(default=r"D:\Programação\Teste\PIM\icon.ico")
+        except:
+            pass  # ignora se falhar (só no .exe)
+        self.root.geometry("1280x800")
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing) # evento ao fechar
-        tema_escuro(self.root) # aplica o tema escuro na janela
+        tema_escuro(self.root)
 
         self.base_url = "http://localhost:8000" # url base do servidor (fastapi rodando localmente)
         self.sio = socketio.Client() # atualização em tempo real
@@ -73,7 +80,7 @@ class SistemaAcademico:
         self.setup_websocket()
         self.pagina_login()
 
-    def setup_websocket(self): # função para conexão em tempo real
+    def setup_websocket(self):
         try:
             self.sio.connect(self.base_url, transports=['websocket']) # conecta ao servidor
             logger.info("WebSocket conectado com sucesso!")
@@ -82,8 +89,8 @@ class SistemaAcademico:
             eventos = ["atualizar_alunos", "atualizar_cursos", "atualizar_turmas", "atualizar_materias", "atualizar_chatbot"]
             for evento in eventos:
                 entidade = evento.replace("atualizar_", "")
-                self.sio.on(evento, lambda data, ent=entidade: self.atualizar_pagina_websocket(ent))
-                # usa lambda como fixo para evitar que uma função interna acesse e use variáveis do escopo externo
+                self.sio.on(evento, lambda data, ent=entidade: self.atualizar_pagina_websocket(ent)) # usa lambda como fixo para evitar que uma
+                                                                                                    # função interna acesse e use variáveis do escopo externo
 
             # evento padrão do socket.io                                                                                     
             @self.sio.event
@@ -102,16 +109,16 @@ class SistemaAcademico:
             self.sio.disconnect()
         self.root.destroy()
 
-    def titulo_centralizado(self, texto: str): # função para criar um título grande e centralizado
+    def titulo_centralizado(self, texto: str):
         label = ttk.Label(self.frame_main, text=texto, font=("Segoe UI", 18, "bold"))
         label.pack(pady=(20, 10), fill="x")
         label.pack_configure(anchor="center")
 
-    def pagina_login(self): # função para a tela de acesso
+    def pagina_login(self):
         self.limpar_tudo() # remove todos os widgets
 
         # tela de login com título e subtítulo
-        frame = ttk.Frame(self.root, padding=40) 
+        frame = ttk.Frame(self.root, padding=40)
         frame.pack(expand=True)
         ttk.Label(frame, text="Sistema Acadêmico", font=("Segoe UI", 20, "bold")).pack(pady=20)
         ttk.Label(frame, text="Faça login para continuar", font=("Segoe UI", 10)).pack(pady=(0, 20))
@@ -134,12 +141,12 @@ class SistemaAcademico:
         ttk.Button(btn_frame, text="Entrar", command=self.login).pack(side="left", padx=5)
         ttk.Button(btn_frame, text="Registrar", command=self.register).pack(side="left", padx=5)
 
-    def login(self): # função para fazer login
-        username = self.username_entry.get().strip() # get () pega o texto do campo e strip() remove espaços
+    def login(self):
+        username = self.username_entry.get().strip()
         password = self.password_entry.get().strip()
         if not username or not password or username in ["Usuário", "Senha"]:
             return messagebox.showerror("Erro", "Preencha usuário e senha")
-        self.mostrar_loading("Fazendo login...") 
+        self.mostrar_loading("Fazendo login...")
 
 
         # função que é passada como argumento para outra função e que vai ser executada após a resposta do servidor
@@ -156,7 +163,7 @@ class SistemaAcademico:
         # envia dados do cliente para o servidor em um fluxo de execução separado
         self.http_em_thread("POST", f"{self.base_url}/login", {"username": username, "password": password}, callback)
 
-    def register(self): # mesma lógica que a função de login, só que envia para o /register
+    def register(self):
         username = self.username_entry.get().strip()
         password = self.password_entry.get().strip()
         if not username or not password or username in ["Usuário", "Senha"]:
@@ -174,7 +181,7 @@ class SistemaAcademico:
 
         self.http_em_thread("POST", f"{self.base_url}/register", {"username": username, "password": password}, callback)
 
-    def inicializar_perguntas_chatbot(self): # função que cria perguntas ao abrir o sistema
+    def inicializar_perguntas_chatbot(self):
 
         #lista de perguntas e respostas padrão  
         perguntas_prontas = [
@@ -193,7 +200,7 @@ class SistemaAcademico:
 
         def callback(sucesso, dados, erro):
             if not sucesso: return
-            existentes = {p["pergunta"].strip().lower(): p for p in dados} # dicionário com perguntas existentes
+            existentes = {p["pergunta"].strip().lower(): p for p in dados}
             for item in perguntas_prontas:
                 key = item["pergunta"].strip().lower()
                 if key not in existentes: # adiciona pergunta se não existir
@@ -202,7 +209,7 @@ class SistemaAcademico:
 
         self.http_em_thread("GET", f"{self.base_url}/chatbot_respostas", callback=callback)
 
-    def montar_interface(self): # função para exibir menu lateral e área principal
+    def montar_interface(self):
         self.limpar_tudo()
         self.menu_lateral()
         self.area_principal()
@@ -211,25 +218,25 @@ class SistemaAcademico:
         for widget in self.root.winfo_children():
             widget.destroy() # remove tudo da janela
 
-    def menu_lateral(self): # função para criar o menu lateral a esquerda
+    def menu_lateral(self):
         menu = ttk.Frame(self.root, width=220, padding=15)
         menu.pack(side="left", fill="y")
         menu.pack_propagate(False) # impede que o frame encolha
         ttk.Label(menu, text="MENU", font=("Segoe UI", 14, "bold")).pack(pady=(0, 20))
         opcoes = [("Alunos", "alunos"), ("Cursos", "cursos"), ("Turmas", "turmas"), ("Matérias", "materias"), ("Chatbot", "chatbot"), ("Sair", None)]
         for texto, pagina in opcoes:
-            if pagina:                                      # partial () define qual página abrir
+            if pagina:
                 btn = ttk.Button(menu, text=texto, width=20, command=partial(self.mostrar_pagina, pagina))
                 btn.pack(pady=4)
-            else:                                           
+            else:
                 btn = ttk.Button(menu, text=texto, width=20, command=self.root.quit)
                 btn.pack(pady=20)
 
-    def area_principal(self): # função que cria área principal a direita
+    def area_principal(self):
         self.frame_main = ttk.Frame(self.root, padding=20)
         self.frame_main.pack(side="right", fill="both", expand=True)
 
-    def limpar_area(self): # limpa conteúdo ao mudar de página
+    def limpar_area(self):
         for widget in self.frame_main.winfo_children():
             widget.destroy()
         for attr in list(self.__dict__.keys()):
@@ -247,7 +254,7 @@ class SistemaAcademico:
         }
         return mapeamento.get(entidade, {"colunas": [], "chaves": []})
 
-    def criar_tabela(self, entidade: str): # função para criar tabelas
+    def criar_tabela(self, entidade: str):
         info = self.get_colunas_e_chaves(entidade)
         tree = ttk.Treeview(self.frame_main, columns=info["colunas"], show="headings", height=16, selectmode="browse")
         for col in info["colunas"]:         # configura cada coluna
@@ -276,7 +283,7 @@ class SistemaAcademico:
             tree.bind("<Double-1>", on_double_click)
         return tree
 
-    def mostrar_detalhes_entidade(self, entidade: str, dados: Dict): # abre uma página que mostra todos os detalhes
+    def mostrar_detalhes_entidade(self, entidade: str, dados: Dict):
         janela = tk.Toplevel(self.root)
         janela.title(f"Detalhes - {entidade.title()}")
         janela.geometry("700x500")
@@ -327,7 +334,7 @@ class SistemaAcademico:
 
         frame.columnconfigure(1, weight=1)
 
-    def _selecionar_linha(self, tree, event): 
+    def _selecionar_linha(self, tree, event):
         item = tree.identify_row(event.y)
         if item:
             tree.selection_set(item)
@@ -346,7 +353,7 @@ class SistemaAcademico:
         scroll.pack(side="right", fill="y")
 
     def preencher_tabela(self, tree, dados: List[Dict], chaves: List[str]):
-        for i in tree.get_children(): # limpa a tabela
+        for i in tree.get_children():
             tree.delete(i)
         for idx, item in enumerate(dados):
             valores = []
@@ -356,10 +363,8 @@ class SistemaAcademico:
                 if chave == "descricao" and len(valor) > 80: valor = valor[:77] + "..."
                 valores.append(str(valor))
             tag = "even" if idx % 2 == 0 else "odd" # even/odd são cores alternadas
-            tree.insert("", "end", values=valores, tags=(str(item["id"]), tag)) # insere uma linha com valores e ID
-        
-        # linhas alternadas com cores diferentes
-        tree.tag_configure("even", background="#353535") 
+            tree.insert("", "end", values=valores, tags=(str(item["id"]), tag))
+        tree.tag_configure("even", background="#353535")
         tree.tag_configure("odd", background="#2d2d2d")
 
     def _executar_callback_com_selecao(self, entidade: str, dados: List[Dict], tree):
@@ -382,9 +387,9 @@ class SistemaAcademico:
     def atualizar_pagina_websocket(self, entidade: str):
         if not self.token or entidade not in self.atualizando or not self.atualizando[entidade]:
             return
-        self.get_dados(entidade, force_refresh=True) # força atualização do servidor
+        self.get_dados(entidade, force_refresh=True)
         if entidade in self.atualizando and self.atualizando[entidade]:
-            self.root.after(1000, lambda: self.atualizar_pagina_websocket(entidade)) # repete a cada 1 (um) segundo
+            self.root.after(1000, lambda: self.atualizar_pagina_websocket(entidade))
 
     def get_cursos(self, refresh=False):
         if not self.token: return []
@@ -430,7 +435,7 @@ class SistemaAcademico:
                 self.preencher_tabela(tree, cached, info["chaves"])
             self.root.after(100, lambda: self._atualizar_em_background(entidade))
             return
-        self._carregar_do_servidor(entidade) # pede cache ao servidor
+        self._carregar_do_servidor(entidade)
 
     def _atualizar_em_background(self, entidade: str):
         def callback(sucesso, dados, erro):
@@ -507,12 +512,12 @@ class SistemaAcademico:
             self.combo_turma.configure(state="disabled")
             self.turma_var.set("")
 
-    def sincroniza(self, event=None): # função para sincronizar turma e curso
+    def sync_curso_from_turma(self, event=None):
         selected_turma = self.turma_var.get()
         if not selected_turma or not self.cache_turmas:
             return
 
-        for t in self.cache_turmas: # quando seleciona turma, o curso é preenchido automaticamente
+        for t in self.cache_turmas:
             if t["turma"] == selected_turma:
                 self.curso_var.set(t["curso_sigla"])
                 # Atualiza o combo também
@@ -545,7 +550,7 @@ class SistemaAcademico:
         self.combo_turma.grid(row=1, column=3, padx=5, pady=3)
 
         # sincroniza curso ao selecionar turma
-        self.combo_turma.bind("<<ComboboxSelected>>", self.sincroniza)
+        self.combo_turma.bind("<<ComboboxSelected>>", self.sync_curso_from_turma)
 
         def adicionar():
             nome = self.aluno_entries[0].get().strip()
@@ -662,7 +667,7 @@ class SistemaAcademico:
         self.combo_turma.grid(row=1, column=3, padx=5, pady=3)
 
         self.root.after(800, self.atualizar_combos)
-        self.combo_turma.bind("<<ComboboxSelected>>", self.sincroniza)  # Sincroniza curso
+        self.combo_turma.bind("<<ComboboxSelected>>", self.sync_curso_from_turma)  # Sincroniza curso
 
         def adicionar():
             valores = [e.get().strip() for e in self.materia_entries]
@@ -679,7 +684,7 @@ class SistemaAcademico:
             for e in self.materia_entries: e.delete(0, tk.END)
             self.curso_var.set(curso)
             self.root.after(800, self.atualizar_combos)
-            self.combo_turma.bind("<<ComboboxSelected>>", self.sincroniza)
+            self.combo_turma.bind("<<ComboboxSelected>>", self.sync_curso_from_turma)
 
         ttk.Button(frame_form, text="Adicionar", command=adicionar).grid(row=4, column=1, pady=10)
         tree = self.criar_tabela("materias")
@@ -723,7 +728,7 @@ class SistemaAcademico:
         if len(valores) != len(chaves):
             return messagebox.showerror("Erro", "Campos inválidos")
         valores = [v if v != "" else None for v in valores]
-        payload = dict(zip(chaves, valores)) # converte listas em dicionários com chaves corretas
+        payload = dict(zip(chaves, valores))
         def callback(sucesso, dados, erro):
             if sucesso:
                 messagebox.showinfo("Sucesso", "Adicionado!")
@@ -733,7 +738,7 @@ class SistemaAcademico:
         url = f"{self.base_url}/{entidade}"
         if entidade == "chatbot_respostas":
             url = f"{self.base_url}/chatbot_respostas"
-        self.http_em_thread("POST", url, payload, callback) # envia post com os dados
+        self.http_em_thread("POST", url, payload, callback)
 
     def alterar_entidade(self, entidade: str):
         tree = getattr(self, f"tree_{entidade}", None)
@@ -746,15 +751,12 @@ class SistemaAcademico:
         self.abrir_janela_alterar(entidade_url, valores, id_item)
 
     def abrir_janela_alterar(self, entidade: str, valores: tuple, id_item: str):
-        janela = tk.Toplevel(self.root) # janela secundária
+        janela = tk.Toplevel(self.root)
         janela.title(f"Alterar {entidade.replace('_', ' ').title()}")
         janela.geometry("950x600")
         janela.configure(bg="#2b2b2b")
-
-        # bloqueia a janela principal até fechar a secundária
         janela.transient(self.root)
         janela.grab_set()
-
         frame = ttk.Frame(janela, padding=20)
         frame.pack(fill="both", expand=True)
         info = self.get_colunas_e_chaves(entidade.split("_")[0] if "_" in entidade else entidade)
@@ -792,8 +794,9 @@ class SistemaAcademico:
                 entry.grid(row=i, column=1, padx=5, pady=6, sticky="ew")
                 entradas.append(entry)
 
+            # sincroniza curso ao selecionar turma na janela de alteração
         if "turma" in vars_dict and "curso_sigla" in vars_dict:
-            def sincroniza_curso(event=None):
+            def sync_curso(event=None):
                 sel_turma = vars_dict["turma"].get()
                 if sel_turma and self.cache_turmas:
                     for t in self.cache_turmas:
@@ -803,8 +806,8 @@ class SistemaAcademico:
 
             combo_turma = next((e for e in entradas if isinstance(e, ttk.Combobox) and e.cget("textvariable") == str(vars_dict.get("turma"))), None)
             if combo_turma:
-                combo_turma.bind("<<ComboboxSelected>>", sincroniza_curso)
-                self.root.after(150, sincroniza_curso, None)  # Preenche ao abrir
+                combo_turma.bind("<<ComboboxSelected>>", sync_curso)
+                self.root.after(150, sync_curso, None)  # Preenche ao abrir
 
         def salvar():
             novos = []
@@ -845,7 +848,7 @@ class SistemaAcademico:
         if not selecionados:
             return messagebox.showwarning("Atenção", "Selecione um item")
         id_item = tree.item(selecionados[0], "tags")[0]
-        if messagebox.askyesno("Confirmação", "Excluir permanentemente?"): # exibe caixa de diálogo com sim e não
+        if messagebox.askyesno("Confirmação", "Excluir permanentemente?"):
             def callback(sucesso, dados, erro):
                 if sucesso:
                     messagebox.showinfo("Sucesso", "Excluído!")
@@ -899,11 +902,7 @@ class SistemaAcademico:
             self.loading.destroy()
             self.loading = None
 
-
-
-    
 if __name__ == "__main__":
-
     root = tk.Tk()
     app = SistemaAcademico(root)
     root.mainloop()
