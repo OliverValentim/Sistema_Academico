@@ -8,7 +8,7 @@
 # Executável
 1. Baixe a versão mais recente: [Download SistemaAcademico.exe](https://github.com/OliverValentim/Sistema_Academico/releases/latest)
 2. Extraia a pasta
-3. **Dê dois cliques em `sistema.bat`**
+3. Dê dois cliques em `sistema.bat`
 4. Tudo roda automaticamente!
 
 ## Desenvolvimento
