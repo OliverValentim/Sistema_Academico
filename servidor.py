@@ -1,26 +1,29 @@
 # Título: Desenvolvimento de um Sistema Acadêmico Colaborativo
 # Matéria: Projeto Integrador Multidisciplinar (PIM)
 # Turma: [DS2P44]
-# Autores: Oliver V. C. Santos (Líder), Richard I. Lima, Danilo H. C. Ferreira, Raphael L. Lopes
+# Autores: Oliver Valentim Carvalho Santos (H30GGD3) - Lí­der
+#          Richard Itsou Lima (H637643)
+#          Danilo Henrique Cardoso Ferreira (R845GG5)
+#          Raphael Lima Lopes (F3616J5)
 
 import psycopg2 # driver oficial para PostgreSQL (o banco de dados)
 from psycopg2 import pool # reutiliza conexões
-from decouple import config #lê variáveis de ambiente do arquivo .env
-# fastapi: framework web; status: códigos http (200, 404, etc)
-from fastapi import FastAPI, status, HTTPException, Depends #httpexception: erros personalizados; depends: injeção de dependência (ex: autenticação)
+from dotenv import load_dotenv # permite carregar variáveis de ambiente de um arquivo .env
+import os # interagir com o sistema operacional
+# fastapi: framework web; status: códigos http (200, 404, etc); httpexception: erros personalizados; depends: injeção de dependência (ex: autenticação)
+from fastapi import FastAPI, status, HTTPException, Depends 
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm # autenticação via token jwt e formulário de login
 from pydantic import BaseModel # validação automática de dados
 from jose import JWTError, jwt # cria e verifica tokens jwt
 from passlib.context import CryptContext # segurança para senhas
 import socketio # websocket em tempo real
 import uvicorn # servidor ASGI (roda FastAPI)
-import secrets # para gerar uma chave forte
 
 #logs e controle de expiração de token
 import logging
 from datetime import datetime, timedelta
 
-# configuração básica para mostrar mensagens info
+# configuração básica
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -30,26 +33,39 @@ app = FastAPI()
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*") # permite qualquer origem (cliente.py)
 app_sio = socketio.ASGIApp(sio, app)
 
-# configuração do banco de dados, informações lidas no .env
-db_config = {
-    "dbname": config("DB_NAME", default="sistema_academico"), # nome do banco
-    "user": config("DB_USER", default="postgres"), # usuário do PostgreSQL
-    "password": config("DB_PASSWORD"), # senha
-    "host": config("DB_HOST", default="localhost"), # host do banco
-    "port": config("DB_PORT", default="5432") # porta padrão do PostgreSQL
-}
-connection_pool = psycopg2.pool.SimpleConnectionPool(minconn=1, maxconn=5, **db_config) # pool de conexões: evita abrir/fechar conexão a cada requisição
+load_dotenv(dotenv_path=".env", encoding="utf-8", override=True) # carrega o arquivo .env com as configurações
+
+# banco de dados
+DB_NAME = os.getenv("DB_NAME")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT")
 
 # JWT
-SECRET_KEY = config("SECRET_KEY") # senha para assinar tokens
-ALGORITHM = "HS256" # tipo de criptografia
-ACCESS_TOKEN_EXPIRE_MINUTES = 30 # token expira em trinta minutos
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login") # informa que o token vem do login
-print(secrets.token_urlsafe(32)) ## gera algo como "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8S9t0U"
+SECRET_KEY = os.getenv("SECRET_KEY") # chave secreta para tokens
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login") # pega o token do cabeçalho
+
+# Uvicorn
+API_HOST = os.getenv("API_HOST", "0.0.0.0") # onde o servidor roda
+API_PORT = int(os.getenv("API_PORT", "8000")) # porta do servidor
+
+# configuração completa do banco de dados
+db_config = {
+    "dbname": DB_NAME,
+    "user": DB_USER,
+    "password": DB_PASSWORD,
+    "host": DB_HOST,
+    "port": DB_PORT
+}
+
+connection_pool = psycopg2.pool.SimpleConnectionPool(minconn=1, maxconn=5, **db_config) # cria um pool de conexão
+
 
 # gerenciador do banco
-class DadosSistemaServidor: # define uma classe
-    def __init__(self): # construtor que roda ao criar o objeto
+class DadosSistemaServidor:
+    def __init__(self):
         self._criar_tabelas()
 
     def get_connection(self):
@@ -59,8 +75,11 @@ class DadosSistemaServidor: # define uma classe
         connection_pool.putconn(conn)
 
     def _criar_tabelas(self):
-        conn = self.get_connection() # variável que recebe o valor
-        cursor = conn.cursor() # ponteiro para executar SQL
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        print("Usuário atual:", conn.get_dsn_parameters()['user'])
+        cursor.execute("SELECT current_user, current_schema();")
+        print("Resultado:", cursor.fetchone())
 
         # SERIAL PRIMARY KEY: id automático;  UNIQUE: evita duplicar; TEXT NOT NULL: texto obrigatório;
         # FOREIGN KEY: referência; ON DELETE CASCADE: apaga dependências
@@ -111,20 +130,20 @@ class DadosSistemaServidor: # define uma classe
                 resposta TEXT NOT NULL
             );
         """)
-        conn.commit() # salva as mudanças no banco de dados
+        conn.commit()
         cursor.close()
         self.release_connection(conn)
 
-    def executar(self, sql, params=()): # parâmetros com tupla vazia por padrão
+    def executar(self, sql, params=()):
         conn = self.get_connection()
         cursor = conn.cursor()
         try:
             cursor.execute(sql, params)
             conn.commit()
-        except Exception as e: 
-            conn.rollback() # se der erro, desfaz
-            raise e # lança erro
-        finally: # fecha tudo
+        except Exception as e:
+            conn.rollback()
+            raise e
+        finally:
             cursor.close()
             self.release_connection(conn)
 
@@ -132,16 +151,16 @@ class DadosSistemaServidor: # define uma classe
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute(sql, params)
-        results = cursor.fetchall() # pega todos os resultados
+        results = cursor.fetchall()
         cursor.close()
         self.release_connection(conn)
         return results
 
 db_servidor = DadosSistemaServidor() # instância global
 
-# Modelos pydantic
+# Mmdelos pydantic
 class LoginData(BaseModel):
-    username: str # str é a abreviação de string
+    username: str
     password: str
 
 class AlunoCreate(BaseModel):
@@ -175,11 +194,11 @@ class ChatbotRespostaCreate(BaseModel):
     resposta: str
 
 # Autenticação
-def create_access_token(data: dict): # parâmetro do tipo dicionário
+def create_access_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES) # utcnow() hora atual em UTC
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM) # cria o token
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 async def get_current_user(token: str = Depends(oauth2_scheme)): # verifica token e, se inválido, erro 401
     credentials_exception = HTTPException(
@@ -188,7 +207,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)): # verifica toke
         headers={"WWW-Authenticate": "Bearer"}
     )
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM]) # lê o token
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if not username:
             raise credentials_exception
@@ -205,10 +224,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme)): # verifica toke
         raise credentials_exception
     return user[0]
 
-# endpoints de autenticação
-@app.post("/register") # adiciona funcionalidade
-async def register_user(user: LoginData): # valida com pydantic
-    hashed = pwd_context.hash(user.password) # criptografa a senha
+# wndpoints de autenticação
+@app.post("/register") # adiciona
+async def register_user(user: LoginData):
+    hashed = pwd_context.hash(user.password)
     try:
         db_servidor.executar(
             "INSERT INTO users (username, hashed_password) VALUES (%s, %s)",
@@ -447,13 +466,13 @@ async def delete_chatbot_resposta(resposta_id: int, current_user: str = Depends(
         raise HTTPException(status_code=400, detail=str(e))
 
 # websocket
-@sio.event # decorador para evento
+@sio.event
 async def connect(sid, environ):
-    logger.info(f"Cliente conectado: {sid}") # f"..." é uma string formatada
+    logger.info(f"Cliente conectado: {sid}")
 
 @sio.event
 async def disconnect(sid):
     logger.info(f"Cliente desconectado: {sid}")
 
-if __name__ == "__main__": # __name__ é o nome do arquivo e "__main__" só roda se for o arquivo principal
+if __name__ == "__main__":
     uvicorn.run("servidor:app_sio", host="0.0.0.0", port=8000, log_level="info") # roda na porta 8000; app_sio: FastAPI + Socket.IO
